@@ -10,9 +10,6 @@
     <title>逸百年康养美容客户管理系统</title>
     <link rel="manifest" href="./manifest.json">
     <link rel="apple-touch-icon" href="./icon-192.png">
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js"></script>
     <style>
         * {
             margin: 0;
@@ -456,20 +453,7 @@ if ('serviceWorker' in navigator) {
     });
 }
 
-// Firebase 配置
-const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_PROJECT_ID.appspot.com",
-    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-    appId: "YOUR_APP_ID",
-    databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com"
-};
 
-// 初始化 Firebase
-firebase.initializeApp(firebaseConfig);
-const database = firebase.database();
 
 // 本地数据
 // 初始化数据缓存
@@ -491,19 +475,6 @@ function saveData() {
     localStorage.setItem('yibainian_cancels', JSON.stringify(dataCache.cancels));
     localStorage.setItem('yibainian_employees', JSON.stringify(dataCache.employees));
     localStorage.setItem('yibainian_expenses', JSON.stringify(dataCache.expenses));
-    
-    // 保存到Firebase数据库
-    database.ref('data').set({
-        customers: dataCache.customers,
-        cards: dataCache.cards,
-        checkins: dataCache.checkins,
-        cancels: dataCache.cancels,
-        employees: dataCache.employees,
-        expenses: dataCache.expenses,
-        lastUpdated: new Date().toISOString()
-    }).catch(error => {
-        console.error('Firebase 保存失败:', error);
-    });
 }
 
 // 为了兼容现有代码，创建别名
@@ -514,94 +485,7 @@ let cancels = dataCache.cancels;
 let packages = dataCache.employees;
 let expenses = dataCache.expenses;
 
-// 从Firebase加载数据
-function loadDataFromFirebase() {
-    database.ref('data').once('value', snapshot => {
-        const data = snapshot.val();
-        if (data) {
-            // 更新数据缓存
-            dataCache.customers = data.customers || [];
-            dataCache.cards = data.cards || [];
-            dataCache.checkins = data.checkins || [];
-            dataCache.cancels = data.cancels || [];
-            dataCache.employees = data.employees || [];
-            dataCache.expenses = data.expenses || [];
-            
-            // 更新别名
-            customers = dataCache.customers;
-            cards = dataCache.cards;
-            checkins = dataCache.checkins;
-            cancels = dataCache.cancels;
-            packages = dataCache.employees;
-            expenses = dataCache.expenses;
-            
-            // 更新本地存储
-            saveData();
-            
-            // 重新渲染所有列表
-            renderCardList();
-            renderCheckinList();
-            renderCancelList();
-            renderEmployeeList();
-            renderExpenseList();
-            renderDataCenter();
-            
-            console.log('数据从Firebase加载成功');
-        }
-    }).catch(error => {
-        console.error('Firebase 加载失败:', error);
-    });
-}
 
-// 设置Firebase数据实时监听
-function setupFirebaseListener() {
-    database.ref('data').on('value', snapshot => {
-        const data = snapshot.val();
-        if (data) {
-            // 检查数据是否有变化
-            const currentData = JSON.stringify(dataCache);
-            const newData = JSON.stringify({
-                customers: data.customers || [],
-                cards: data.cards || [],
-                checkins: data.checkins || [],
-                cancels: data.cancels || [],
-                employees: data.employees || [],
-                expenses: data.expenses || []
-            });
-            
-            if (currentData !== newData) {
-                // 更新数据缓存
-                dataCache.customers = data.customers || [];
-                dataCache.cards = data.cards || [];
-                dataCache.checkins = data.checkins || [];
-                dataCache.cancels = data.cancels || [];
-                dataCache.employees = data.employees || [];
-                dataCache.expenses = data.expenses || [];
-                
-                // 更新别名
-                customers = dataCache.customers;
-                cards = dataCache.cards;
-                checkins = dataCache.checkins;
-                cancels = dataCache.cancels;
-                packages = dataCache.employees;
-                expenses = dataCache.expenses;
-                
-                // 更新本地存储
-                saveData();
-                
-                // 重新渲染所有列表
-                renderCardList();
-                renderCheckinList();
-                renderCancelList();
-                renderEmployeeList();
-                renderExpenseList();
-                renderDataCenter();
-                
-                console.log('数据已从Firebase实时更新');
-            }
-        }
-    });
-}
 
 // 用户管理
 let users = JSON.parse(localStorage.getItem('yibainian_users')) || [];
@@ -2272,10 +2156,6 @@ function logout() {
 
 // 页面加载时检查登录状态
 window.onload = function() {
-    // 初始化Firebase数据
-    loadDataFromFirebase();
-    setupFirebaseListener();
-    
     if(currentUser) {
         showMainSystem();
     }
