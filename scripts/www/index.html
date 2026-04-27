@@ -186,7 +186,9 @@
     <button onclick="goPage('checkin')">客户打卡</button>
     <button onclick="goPage('cancel')">销卡办理</button>
     <button onclick="goPage('employee')">员工管理</button>
+    <button onclick="goPage('income')">收入管理</button>
     <button onclick="goPage('data')">数据中心</button>
+    <button onclick="goPage('report')">收支明细</button>
     <button onclick="goPage('expense')">支出管理</button>
 </div>
 
@@ -199,7 +201,9 @@
         <button class="btn" onclick="goPage('checkin')">客户打卡</button>
         <button class="btn" onclick="goPage('cancel')">销卡办理</button>
         <button class="btn" onclick="goPage('employee')">员工管理</button>
+        <button class="btn" onclick="goPage('income')">收入管理</button>
         <button class="btn" onclick="goPage('data')">数据中心</button>
+        <button class="btn" onclick="goPage('report')">收支明细</button>
         <button class="btn" onclick="goPage('expense')">支出管理</button>
     </div>
 </div>
@@ -401,6 +405,66 @@
     </div>
 </div>
 
+<!-- 收入管理 -->
+<div id="income" class="page">
+    <div class="form-box">
+        <h3>💵 收入管理</h3>
+        <input id="income_date" type="date" placeholder="收入日期" style="margin-bottom: 10px;">
+        <select id="income_type" style="margin-bottom: 10px;">
+            <option value="">请选择收入类型</option>
+            <option value="开卡收入">开卡收入</option>
+            <option value="服务收入">服务收入</option>
+            <option value="产品销售">产品销售</option>
+            <option value="其他收入">其他收入</option>
+        </select>
+        <input id="income_amount" type="number" placeholder="收入金额" min="0" step="0.01" style="margin-bottom: 10px;">
+        <input id="income_desc" type="text" placeholder="收入描述" style="margin-bottom: 10px;">
+        <button class="btn" onclick="addIncome()">添加收入</button>
+    </div>
+    <div class="form-box">
+        <h3>📋 收入记录</h3>
+        <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+            <input id="income_start_date" type="date" placeholder="开始日期" style="flex: 1;">
+            <input id="income_end_date" type="date" placeholder="结束日期" style="flex: 1;">
+        </div>
+        <button class="btn" onclick="filterIncome()" style="margin-bottom: 10px;">查询</button>
+        <div id="incomeList"></div>
+    </div>
+    <div class="form-box">
+        <h3>📊 收入汇总</h3>
+        <div id="incomeSummary"></div>
+        <button class="btn" onclick="exportIncome()" style="margin-top: 10px;">导出收入数据</button>
+    </div>
+</div>
+
+<!-- 全店收支明细 -->
+<div id="report" class="page">
+    <div class="form-box">
+        <h3>💵 全店收支明细表</h3>
+        <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+            <input id="report_start_date" type="date" placeholder="开始日期" style="flex: 1;">
+            <input id="report_end_date" type="date" placeholder="结束日期" style="flex: 1;">
+        </div>
+        <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+            <select id="report_type" style="flex: 1;">
+                <option value="">全部类型</option>
+                <option value="income">只看收入</option>
+                <option value="expense">只看支出</option>
+            </select>
+        </div>
+        <button class="btn" onclick="filterReport()" style="margin-bottom: 10px;">查询</button>
+        <button class="btn btn-blue" onclick="exportReport()" style="margin-bottom: 10px;">导出数据</button>
+    </div>
+    <div class="form-box">
+        <h3>📊 收支汇总</h3>
+        <div id="reportSummary"></div>
+    </div>
+    <div class="form-box">
+        <h3>📋 明细记录</h3>
+        <div id="reportList"></div>
+    </div>
+</div>
+
 <!-- 支出管理 -->
 <div id="expense" class="page">
     <div class="form-box">
@@ -463,7 +527,8 @@ let dataCache = {
     checkins: JSON.parse(localStorage.getItem('yibainian_checkins')) || [],
     cancels: JSON.parse(localStorage.getItem('yibainian_cancels')) || [],
     employees: JSON.parse(localStorage.getItem('yibainian_employees')) || [],
-    expenses: JSON.parse(localStorage.getItem('yibainian_expenses')) || []
+    expenses: JSON.parse(localStorage.getItem('yibainian_expenses')) || [],
+    incomes: JSON.parse(localStorage.getItem('yibainian_incomes')) || []
 };
 
 // 数据操作函数
@@ -475,6 +540,7 @@ function saveData() {
     localStorage.setItem('yibainian_cancels', JSON.stringify(dataCache.cancels));
     localStorage.setItem('yibainian_employees', JSON.stringify(dataCache.employees));
     localStorage.setItem('yibainian_expenses', JSON.stringify(dataCache.expenses));
+    localStorage.setItem('yibainian_incomes', JSON.stringify(dataCache.incomes));
 }
 
 // 为了兼容现有代码，创建别名
@@ -484,6 +550,7 @@ let checkins = dataCache.checkins;
 let cancels = dataCache.cancels;
 let packages = dataCache.employees;
 let expenses = dataCache.expenses;
+let incomes = dataCache.incomes;
 
 
 
@@ -786,6 +853,13 @@ function goPage(id) {
         setTimeout(initCancelCanvas, 100);
     }
     if(id === 'employee') renderEmployeeList();
+    if(id === 'income') {
+        renderIncomeList();
+        renderIncomeSummary();
+    }
+    if(id === 'report') {
+        filterReport();
+    }
     if(id === 'data') renderDataCenter();
 }
 
@@ -903,7 +977,11 @@ function saveCustomer() {
         time: new Date().toLocaleString()
     };
     
-    customers.unshift(customer);
+    dataCache.customers.unshift(customer);
+    
+    // 更新别名
+    customers = dataCache.customers;
+    
     saveData();
     alert('客户保存成功！');
     
@@ -979,13 +1057,17 @@ function updateCustomer(id) {
     
     if(!name) { alert('请输入客户姓名！'); return; }
     
-    let index = customers.findIndex(c => c.id === id);
+    let index = dataCache.customers.findIndex(c => c.id === id);
     if(index !== -1) {
-        customers[index] = {
-            ...customers[index],
+        dataCache.customers[index] = {
+            ...dataCache.customers[index],
             name, tel, age, birthday, address, wechat, remark
         };
-        localStorage.setItem('yibainian_customers', JSON.stringify(customers));
+        
+        // 更新别名
+        customers = dataCache.customers;
+        
+        saveData();
         alert('客户更新成功！');
         
         // 恢复保存按钮
@@ -1008,8 +1090,12 @@ function updateCustomer(id) {
 // 删除客户
 function deleteCustomer(id) {
     if(confirm('确定要删除该客户吗？')) {
-        customers = customers.filter(c => c.id !== id);
-        localStorage.setItem('yibainian_customers', JSON.stringify(customers));
+        dataCache.customers = dataCache.customers.filter(c => c.id !== id);
+        
+        // 更新别名
+        customers = dataCache.customers;
+        
+        saveData();
         renderCustomerList();
         alert('客户删除成功！');
     }
@@ -1073,7 +1159,7 @@ function saveCard() {
 
 function renderCardList() {
     let d = document.getElementById('cardList'); d.innerHTML = '';
-    cards.forEach(i=>{
+    cards.forEach((i, index)=>{
         d.innerHTML+=`
         <div class="list-item">
             <div class="title">${i.name} | ${i.type}</div>
@@ -1083,8 +1169,104 @@ function renderCardList() {
             </div>
             ${i.sign ? `<div style="margin-top:5px;"><p style="font-size:12px; color:#666;">客户签名：</p><img src="${i.sign}" style="width:150px;height:50px;border:1px solid #ddd;border-radius:4px;"></div>` : ''}
             ${i.staffSign ? `<div style="margin-top:5px;"><p style="font-size:12px; color:#666;">员工签字：${i.staffSign}</p></div>` : ''}
+            <div style="margin-top: 8px; display: flex; gap: 5px;">
+                <button onclick="editCard(${i.id})" style="flex: 1; padding: 5px; font-size: 12px; background: #4092e8; color: white; border: none; border-radius: 4px;">编辑</button>
+                <button onclick="deleteCard(${i.id})" style="flex: 1; padding: 5px; font-size: 12px; background: #e65050; color: white; border: none; border-radius: 4px;">删除</button>
+            </div>
         </div>`;
     });
+}
+
+// 编辑开卡记录
+function editCard(id) {
+    let card = cards.find(c => c.id === id);
+    if(card) {
+        document.getElementById('card_name').value = card.name;
+        document.getElementById('card_type').value = card.type;
+        document.getElementById('card_price').value = card.price;
+        document.getElementById('card_times').value = card.times;
+        document.getElementById('card_date').value = card.date;
+        document.getElementById('staff_sign').value = card.staffSign;
+        
+        // 替换保存按钮为更新按钮
+        let saveBtn = document.querySelector('#card .btn');
+        saveBtn.textContent = '更新开卡';
+        saveBtn.onclick = function() {
+            updateCard(id);
+        };
+        
+        // 滚动到表单顶部
+        document.getElementById('card').scrollTop = 0;
+    }
+}
+
+// 更新开卡记录
+function updateCard(id) {
+    let name = document.getElementById('card_name').value.trim();
+    let type = document.getElementById('card_type').value;
+    let price = document.getElementById('card_price').value;
+    let times = document.getElementById('card_times').value;
+    let date = document.getElementById('card_date').value;
+    let staffSign = document.getElementById('staff_sign').value.trim();
+    
+    if(!name || !times || !date || !staffSign) {
+        alert('请填写完整信息：姓名、次数、日期、员工签名！');
+        return;
+    }
+    
+    let index = dataCache.cards.findIndex(c => c.id === id);
+    if(index !== -1) {
+        // 计算剩余次数的变化
+        let oldTimes = dataCache.cards[index].times;
+        let oldRemain = dataCache.cards[index].remain;
+        let timesDiff = parseInt(times) - oldTimes;
+        let newRemain = oldRemain + timesDiff;
+        
+        dataCache.cards[index] = {
+            ...dataCache.cards[index],
+            name, type, price,
+            times: parseInt(times),
+            remain: newRemain >= 0 ? newRemain : 0,
+            date, staffSign
+        };
+        
+        // 更新别名
+        cards = dataCache.cards;
+        
+        saveData();
+        alert('开卡更新成功！');
+        
+        // 恢复保存按钮
+        let saveBtn = document.querySelector('#card .btn');
+        saveBtn.textContent = '确认开卡';
+        saveBtn.onclick = saveCard;
+        
+        // 清空表单
+        document.getElementById('card_name').value = '';
+        document.getElementById('card_price').value = '';
+        document.getElementById('card_times').value = '';
+        document.getElementById('card_date').value = '';
+        document.getElementById('staff_sign').value = '';
+        clearCardSignature();
+        
+        renderCardList();
+        renderDataCenter();
+    }
+}
+
+// 删除开卡记录
+function deleteCard(id) {
+    if(confirm('确定要删除该开卡记录吗？')) {
+        dataCache.cards = dataCache.cards.filter(c => c.id !== id);
+        
+        // 更新别名
+        cards = dataCache.cards;
+        
+        saveData();
+        alert('开卡删除成功！');
+        renderCardList();
+        renderDataCenter();
+    }
 }
 
 // 打卡+扣次
@@ -1200,6 +1382,9 @@ function renderDataCenter() {
     // 计算支出统计（每日、每周、每月）
     let expenseStats = calculateExpenseStats();
     
+    // 计算收入统计（每日、每周、每月）
+    let incomeStats = calculateIncomeStats();
+    
     // 计算客户开卡和打卡统计
     let customerStats = calculateCustomerStats();
     
@@ -1279,7 +1464,41 @@ function renderDataCenter() {
         </div>
         
         <div style="margin-top:20px;">
-            <h4 style="margin-bottom:10px;color:#333;">� 卡销售统计</h4>
+            <h4 style="margin-bottom:10px;color:#333;">💵 全店收入数据统计</h4>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+                <div style="background:#f8f9fa;padding:15px;border-radius:8px;border-left:4px solid #6ba995;">
+                    <div style="font-size:12px;color:#666;">今日收入</div>
+                    <div style="font-size:20px;font-weight:bold;color:#6ba995;margin-top:5px;">${incomeStats.today.count}笔</div>
+                    <div style="font-size:14px;color:#333;margin-top:5px;">¥${incomeStats.today.amount}</div>
+                </div>
+                <div style="background:#f8f9fa;padding:15px;border-radius:8px;border-left:4px solid #4092e8;">
+                    <div style="font-size:12px;color:#666;">本周收入</div>
+                    <div style="font-size:20px;font-weight:bold;color:#4092e8;margin-top:5px;">${incomeStats.week.count}笔</div>
+                    <div style="font-size:14px;color:#333;margin-top:5px;">¥${incomeStats.week.amount}</div>
+                </div>
+                <div style="background:#f8f9fa;padding:15px;border-radius:8px;border-left:4px solid #7ed321;">
+                    <div style="font-size:12px;color:#666;">本月收入</div>
+                    <div style="font-size:20px;font-weight:bold;color:#7ed321;margin-top:5px;">${incomeStats.month.count}笔</div>
+                    <div style="font-size:14px;color:#333;margin-top:5px;">¥${incomeStats.month.amount}</div>
+                </div>
+            </div>
+        </div>
+        
+        <div style="margin-top:20px;">
+            <h4 style="margin-bottom:10px;color:#333;">📁 收入类别分布</h4>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));gap:10px;">
+                ${Object.entries(incomeStats.categories).map(([category, amount]) => `
+                    <div style="background:#f8f9fa;padding:12px;border-radius:8px;border-left:4px solid #6ba995;">
+                        <div style="font-weight:bold;color:#333;">${category}</div>
+                        <div style="font-size:20px;color:#6ba995;margin-top:5px;">¥${amount}</div>
+                    </div>
+                `).join('')}
+                ${Object.keys(incomeStats.categories).length === 0 ? '<p style="color:#888;font-size:14px;">暂无收入记录</p>' : ''}
+            </div>
+        </div>
+        
+        <div style="margin-top:20px;">
+            <h4 style="margin-bottom:10px;color:#333;">📊 卡销售统计</h4>
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
                 <div style="background:#f8f9fa;padding:15px;border-radius:8px;border-left:4px solid #6ba995;">
                     <div style="font-size:12px;color:#666;">今日销售</div>
@@ -1500,6 +1719,59 @@ function calculateExpenseStats() {
     return stats;
 }
 
+// 计算收入统计（每日、每周、每月）
+function calculateIncomeStats() {
+    let today = new Date();
+    let todayStr = today.toLocaleDateString();
+    
+    // 计算本周开始日期
+    let weekStart = new Date(today);
+    weekStart.setDate(today.getDate() - today.getDay() + 1); // 本周一
+    
+    // 计算本月开始日期
+    let monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    
+    let stats = {
+        today: { count: 0, amount: 0 },
+        week: { count: 0, amount: 0 },
+        month: { count: 0, amount: 0 },
+        categories: {}
+    };
+    
+    incomes.forEach(income => {
+        let incomeDate = new Date(income.date || new Date());
+        let incomeDateStr = incomeDate.toLocaleDateString();
+        let incomeAmount = parseFloat(income.amount) || 0;
+        let incomeType = income.type || '其他收入';
+        
+        // 今日收入
+        if(incomeDateStr === todayStr) {
+            stats.today.count++;
+            stats.today.amount += incomeAmount;
+        }
+        
+        // 本周收入
+        if(incomeDate >= weekStart) {
+            stats.week.count++;
+            stats.week.amount += incomeAmount;
+        }
+        
+        // 本月收入
+        if(incomeDate >= monthStart) {
+            stats.month.count++;
+            stats.month.amount += incomeAmount;
+        }
+        
+        // 按类别统计
+        if(!stats.categories[incomeType]) {
+            stats.categories[incomeType] = 0;
+        }
+        stats.categories[incomeType] += incomeAmount;
+    });
+    
+    return stats;
+}
+
 // 计算客户开卡和打卡统计
 function calculateCustomerStats() {
     let customerStats = {};
@@ -1698,6 +1970,402 @@ function clearAllData() {
         renderDataCenter();
         alert('所有数据已清空！');
     }
+}
+
+// 添加收入记录
+function addIncome() {
+    let date = document.getElementById('income_date').value;
+    let type = document.getElementById('income_type').value;
+    let amount = document.getElementById('income_amount').value;
+    let desc = document.getElementById('income_desc').value;
+    
+    if(!date) {
+        alert('请选择收入日期！');
+        return;
+    }
+    
+    if(!type) {
+        alert('请选择收入类型！');
+        return;
+    }
+    
+    if(!amount || parseFloat(amount) <= 0) {
+        alert('请输入有效的收入金额！');
+        return;
+    }
+    
+    // 创建收入记录
+    let newIncome = {
+        id: Date.now(),
+        date: date,
+        type: type,
+        amount: parseFloat(amount),
+        desc: desc,
+        createTime: new Date().toLocaleString()
+    };
+    
+    dataCache.incomes.push(newIncome);
+    
+    // 更新别名
+    incomes = dataCache.incomes;
+    
+    saveData();
+    
+    // 清空表单
+    document.getElementById('income_date').value = '';
+    document.getElementById('income_type').value = '';
+    document.getElementById('income_amount').value = '';
+    document.getElementById('income_desc').value = '';
+    
+    renderIncomeList();
+    renderIncomeSummary();
+    renderDataCenter();
+    
+    alert('收入记录添加成功！');
+}
+
+// 渲染收入记录列表
+function renderIncomeList(filteredIncomes = incomes) {
+    let d = document.getElementById('incomeList');
+    d.innerHTML = '';
+    
+    if(filteredIncomes.length === 0) {
+        d.innerHTML = '<div class="list-item">暂无收入记录</div>';
+        return;
+    }
+    
+    // 按日期降序排列
+    filteredIncomes.sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    filteredIncomes.forEach(income => {
+        d.innerHTML += `
+        <div class="list-item">
+            <div class="title">${income.type} | ¥${income.amount.toFixed(2)}</div>
+            <div class="info">
+                日期：${income.date}<br>
+                描述：${income.desc || '无'}<br>
+                记录时间：${income.createTime}
+            </div>
+            <div style="margin-top: 8px; display: flex; gap: 5px;">
+                <button onclick="deleteIncome(${income.id})" style="flex: 1; padding: 5px; font-size: 12px; background: #e65050; color: white; border: none; border-radius: 4px;">删除</button>
+            </div>
+        </div>`;
+    });
+}
+
+// 过滤收入记录
+function filterIncome() {
+    let startDate = document.getElementById('income_start_date').value;
+    let endDate = document.getElementById('income_end_date').value;
+    
+    let filtered = incomes;
+    
+    if(startDate) {
+        filtered = filtered.filter(income => income.date >= startDate);
+    }
+    
+    if(endDate) {
+        filtered = filtered.filter(income => income.date <= endDate);
+    }
+    
+    renderIncomeList(filtered);
+    renderIncomeSummary(filtered);
+}
+
+// 渲染收入汇总
+function renderIncomeSummary(filteredIncomes = incomes) {
+    let d = document.getElementById('incomeSummary');
+    
+    if(filteredIncomes.length === 0) {
+        d.innerHTML = '<div style="text-align: center; color: #666;">暂无收入数据</div>';
+        return;
+    }
+    
+    // 按类型汇总
+    let summary = {};
+    let totalAmount = 0;
+    
+    filteredIncomes.forEach(income => {
+        if(!summary[income.type]) {
+            summary[income.type] = { count: 0, amount: 0 };
+        }
+        summary[income.type].count++;
+        summary[income.type].amount += income.amount;
+        totalAmount += income.amount;
+    });
+    
+    let html = '<div style="margin-bottom: 10px;"><strong>总收入：¥' + totalAmount.toFixed(2) + '</strong></div>';
+    html += '<div style="margin-bottom: 10px;"><strong>按类型统计：</strong></div>';
+    
+    for(let type in summary) {
+        html += `
+        <div style="padding: 8px; background: #f5f5f5; margin-bottom: 5px; border-radius: 4px;">
+            <div style="font-weight: bold;">${type}</div>
+            <div style="font-size: 12px; color: #666;">
+                笔数：${summary[type].count} | 金额：¥${summary[type].amount.toFixed(2)}
+            </div>
+        </div>`;
+    }
+    
+    d.innerHTML = html;
+}
+
+// 删除收入记录
+function deleteIncome(id) {
+    if(confirm('确定要删除该收入记录吗？')) {
+        dataCache.incomes = dataCache.incomes.filter(income => income.id !== id);
+        
+        // 更新别名
+        incomes = dataCache.incomes;
+        
+        saveData();
+        renderIncomeList();
+        renderIncomeSummary();
+        renderDataCenter();
+        alert('收入记录删除成功！');
+    }
+}
+
+// 导出收入数据
+function exportIncome() {
+    let startDate = document.getElementById('income_start_date').value;
+    let endDate = document.getElementById('income_end_date').value;
+    
+    let filtered = incomes;
+    
+    if(startDate) {
+        filtered = filtered.filter(income => income.date >= startDate);
+    }
+    
+    if(endDate) {
+        filtered = filtered.filter(income => income.date <= endDate);
+    }
+    
+    if(filtered.length === 0) {
+        alert('没有可导出的收入数据！');
+        return;
+    }
+    
+    // 创建CSV内容
+    let csv = '日期,收入类型,金额,描述,记录时间\n';
+    
+    filtered.forEach(income => {
+        csv += `${income.date},${income.type},${income.amount.toFixed(2)},${income.desc || ''},${income.createTime}\n`;
+    });
+    
+    // 创建Blob对象
+    let blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    
+    // 创建下载链接
+    let link = document.createElement('a');
+    let url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `收入数据_${new Date().toLocaleDateString()}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// 全店收支明细 - 过滤和显示
+function filterReport() {
+    let startDate = document.getElementById('report_start_date').value;
+    let endDate = document.getElementById('report_end_date').value;
+    let typeFilter = document.getElementById('report_type').value;
+    
+    console.log('开始日期:', startDate);
+    console.log('结束日期:', endDate);
+    console.log('类型筛选:', typeFilter);
+    console.log('收入数据:', incomes);
+    console.log('支出数据:', expenses);
+    
+    let filteredIncomes = incomes || [];
+    let filteredExpenses = expenses || [];
+    
+    if(startDate) {
+        filteredIncomes = filteredIncomes.filter(item => item.date && item.date >= startDate);
+        filteredExpenses = filteredExpenses.filter(item => item.date && item.date >= startDate);
+    }
+    
+    if(endDate) {
+        filteredIncomes = filteredIncomes.filter(item => item.date && item.date <= endDate);
+        filteredExpenses = filteredExpenses.filter(item => item.date && item.date <= endDate);
+    }
+    
+    console.log('过滤后收入:', filteredIncomes);
+    console.log('过滤后支出:', filteredExpenses);
+    
+    // 计算汇总
+    let totalIncome = 0;
+    let totalExpense = 0;
+    
+    filteredIncomes.forEach(item => {
+        totalIncome += parseFloat(item.amount) || 0;
+    });
+    
+    filteredExpenses.forEach(item => {
+        totalExpense += parseFloat(item.amount) || 0;
+    });
+    
+    // 显示汇总
+    renderReportSummary(totalIncome, totalExpense, filteredIncomes.length, filteredExpenses.length);
+    
+    // 显示明细列表
+    renderReportList(filteredIncomes, filteredExpenses, typeFilter);
+}
+
+// 渲染收支汇总
+function renderReportSummary(totalIncome, totalExpense, incomeCount, expenseCount) {
+    let d = document.getElementById('reportSummary');
+    let profit = totalIncome - totalExpense;
+    
+    let profitClass = profit >= 0 ? '#6ba995' : '#e65050';
+    let profitText = profit >= 0 ? '盈利' : '亏损';
+    
+    d.innerHTML = `
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+            <div style="background: #6ba995; color: white; padding: 15px; border-radius: 8px; text-align: center;">
+                <div style="font-size: 12px;">总收入</div>
+                <div style="font-size: 20px; font-weight: bold; margin-top: 5px;">¥${totalIncome.toFixed(2)}</div>
+                <div style="font-size: 12px; margin-top: 5px;">${incomeCount}笔</div>
+            </div>
+            <div style="background: #e65050; color: white; padding: 15px; border-radius: 8px; text-align: center;">
+                <div style="font-size: 12px;">总支出</div>
+                <div style="font-size: 20px; font-weight: bold; margin-top: 5px;">¥${totalExpense.toFixed(2)}</div>
+                <div style="font-size: 12px; margin-top: 5px;">${expenseCount}笔</div>
+            </div>
+            <div style="background: ${profitClass}; color: white; padding: 15px; border-radius: 8px; text-align: center;">
+                <div style="font-size: 12px;">${profitText}</div>
+                <div style="font-size: 20px; font-weight: bold; margin-top: 5px;">¥${Math.abs(profit).toFixed(2)}</div>
+                <div style="font-size: 12px; margin-top: 5px;">净利润</div>
+            </div>
+        </div>
+    `;
+}
+
+// 渲染收支明细列表
+function renderReportList(filteredIncomes, filteredExpenses, typeFilter) {
+    let d = document.getElementById('reportList');
+    d.innerHTML = '';
+    
+    // 合并收入和支出
+    let allItems = [];
+    
+    if(typeFilter === '' || typeFilter === 'income') {
+        filteredIncomes.forEach(item => {
+            allItems.push({
+                ...item,
+                itemType: 'income',
+                typeName: item.type
+            });
+        });
+    }
+    
+    if(typeFilter === '' || typeFilter === 'expense') {
+        filteredExpenses.forEach(item => {
+            allItems.push({
+                ...item,
+                itemType: 'expense',
+                typeName: item.category
+            });
+        });
+    }
+    
+    // 按日期降序排序
+    allItems.sort((a, b) => {
+        if (!a.date) return 1;
+        if (!b.date) return -1;
+        return new Date(b.date) - new Date(a.date);
+    });
+    
+    if(allItems.length === 0) {
+        d.innerHTML = '<div class="list-item" style="text-align: center; color: #888;">暂无收支记录</div>';
+        return;
+    }
+    
+    allItems.forEach(item => {
+        let bgColor = item.itemType === 'income' ? '#e8f5e9' : '#ffebee';
+        let borderColor = item.itemType === 'income' ? '#6ba995' : '#e65050';
+        let amountColor = item.itemType === 'income' ? '#6ba995' : '#e65050';
+        let amountPrefix = item.itemType === 'income' ? '+' : '-';
+        
+        d.innerHTML += `
+        <div class="list-item" style="background: ${bgColor}; border-left: 4px solid ${borderColor};">
+            <div class="title" style="color: ${amountColor};">
+                ${amountPrefix}¥${parseFloat(item.amount).toFixed(2)} | ${item.typeName}
+            </div>
+            <div class="info">
+                日期：${item.date || '无'}<br>
+                描述：${item.desc || '无'}<br>
+                记录时间：${item.createTime || '无'}
+            </div>
+        </div>`;
+    });
+}
+
+// 导出收支数据
+function exportReport() {
+    let startDate = document.getElementById('report_start_date').value;
+    let endDate = document.getElementById('report_end_date').value;
+    let typeFilter = document.getElementById('report_type').value;
+    
+    let filteredIncomes = incomes || [];
+    let filteredExpenses = expenses || [];
+    
+    if(startDate) {
+        filteredIncomes = filteredIncomes.filter(item => item.date && item.date >= startDate);
+        filteredExpenses = filteredExpenses.filter(item => item.date && item.date >= startDate);
+    }
+    
+    if(endDate) {
+        filteredIncomes = filteredIncomes.filter(item => item.date && item.date <= endDate);
+        filteredExpenses = filteredExpenses.filter(item => item.date && item.date <= endDate);
+    }
+    
+    // 计算汇总
+    let totalIncome = 0;
+    let totalExpense = 0;
+    
+    filteredIncomes.forEach(item => {
+        totalIncome += parseFloat(item.amount) || 0;
+    });
+    
+    filteredExpenses.forEach(item => {
+        totalExpense += parseFloat(item.amount) || 0;
+    });
+    
+    // 创建CSV内容
+    let csv = '类型,日期,类别,金额,描述,记录时间\n';
+    
+    // 添加收入记录
+    if(typeFilter === '' || typeFilter === 'income') {
+        filteredIncomes.forEach(item => {
+            csv += `收入,${item.date},${item.type},${item.amount.toFixed(2)},${item.desc || ''},${item.createTime}\n`;
+        });
+    }
+    
+    // 添加支出记录
+    if(typeFilter === '' || typeFilter === 'expense') {
+        filteredExpenses.forEach(item => {
+            csv += `支出,${item.date},${item.category},${item.amount.toFixed(2)},${item.desc || ''},${item.createTime}\n`;
+        });
+    }
+    
+    // 添加汇总行
+    csv += `\n汇总,总收入,${totalIncome.toFixed(2)},总支出,${totalExpense.toFixed(2)},净利润,${(totalIncome - totalExpense).toFixed(2)}\n`;
+    
+    // 创建Blob对象
+    let blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    
+    // 创建下载链接
+    let link = document.createElement('a');
+    let url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `收支明细_${new Date().toLocaleDateString()}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 }
 
 // 添加支出记录
